@@ -50,6 +50,8 @@ import {
   listAllExternalMusicLibraries,
   removeExternalMusicLibrary,
 } from './externalMusicLibraries'
+import { getSingerPic } from '@/server/utils/singer'
+import type { CacheItem } from '@/server/fileCache'
 
 const networkPlaylistMonitor = new NetworkPlaylistMonitor({
   getUsers: () => global.lx.config.users,
@@ -3141,6 +3143,44 @@ const handleStartServer = async (port = 9527, ip = '127.0.0.1') => await new Pro
           res.writeHead(500)
           res.end(err.message)
         })
+        return
+      }
+      // 7.1 Get Local Artists (grouped by singer with pics)
+      if (pathname === '/api/v1/player/music/local/artists' && req.method === 'POST') {
+        const username = getCacheRequestUsername(req)
+        if (!username) {
+          res.writeHead(401, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ success: false, message: 'Unauthorized' }))
+          return
+        }
+        try {
+          const list = await fileCache.getCacheList(username)
+          const artistMap = new Map<string, { songCount: number, songs: CacheItem[] }>()
+          for (const item of list) {
+            const singers = (item.singer || '').split(/[、，,&；;|\/+]/).map((s: string) => s.trim()).filter(Boolean)
+            if (singers.length === 0) singers.push('未知歌手')
+            for (const singer of singers) {
+              if (!artistMap.has(singer)) artistMap.set(singer, { songCount: 0, songs: [] })
+              artistMap.get(singer)!.songCount++
+              artistMap.get(singer)!.songs.push(item)
+            }
+          }
+          const sorted = Array.from(artistMap.entries()).sort((a, b) => b[1].songCount - a[1].songCount)
+          const priority = global.lx.config['singer.sourcePriority'] || ['tx', 'wy']
+          const result = await Promise.all(sorted.map(async ([name, data]) => {
+            try {
+              const picUrl = await getSingerPic(name, priority as Array<'tx' | 'wy'>)
+              return { name, picUrl, songCount: data.songCount }
+            } catch {
+              return { name, picUrl: null, songCount: data.songCount }
+            }
+          }))
+          res.writeHead(200, { 'Content-Type': 'application/json' })
+          res.end(JSON.stringify({ success: true, data: result }))
+        } catch (err: unknown) {
+          res.writeHead(500)
+          res.end(err instanceof Error ? err.message : String(err))
+        }
         return
       }
       // 8. Get Cache Cover

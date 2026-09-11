@@ -1000,6 +1000,13 @@
                                     <span id="lm-subpath-text" class="max-w-[40px] md:max-w-[60px] truncate">全部</span>
                                 </button>
                             </div>
+                            <!-- View Mode Toggle -->
+                            <div class="flex items-center gap-0.5 bg-gray-100/50 dark:bg-gray-700/30 p-0.5 rounded-lg border t-border-main ml-1 md:ml-2 order-2.5">
+                                <button id="lm-view-song" onclick="window.LocalMusicManager.setViewMode('song')"
+                                    class="lm-filter-tag active !text-[9px] md:!text-[10px] !px-2 !py-0.5">歌曲</button>
+                                <button id="lm-view-artist" onclick="window.LocalMusicManager.setViewMode('artist')"
+                                    class="lm-filter-tag !text-[9px] md:!text-[10px] !px-2 !py-0.5">歌手</button>
+                            </div>
                         </div>
 
                         <!-- Desktop Search & Actions -->
@@ -1068,9 +1075,8 @@
                                     class="w-7 h-7 md:w-8 md:h-8 flex items-center justify-center bg-gray-100 dark:bg-gray-700/50 rounded-lg hover:bg-blue-500 hover:text-white transition-all"
                                     title="批量操作"><i class="fas fa-list-ul text-xs"></i></button>
                             </div>
-                        </div>
-                    </div>
-
+                                            </div>
+                </div>
                     <!-- 高级筛选面板 (折叠式) -->
                     <div id="lm-filter-panel"
                         class="hidden overflow-hidden transition-all duration-300 absolute md:static left-2 right-2 top-[55px] md:top-auto z-50 md:z-auto shadow-2xl md:shadow-none rounded-2xl">
@@ -1242,6 +1248,16 @@
                         </div>
                     </div>
 
+                    <div class="flex flex-1 min-h-0">
+                        <!-- Left: Artist Panel (hidden in song mode) -->
+                        <div id="lm-artist-panel"
+                            class="hidden w-48 md:w-56 lg:w-64 shrink-0 overflow-y-auto custom-scrollbar border-r t-border-main bg-gray-50/50 dark:bg-gray-900/30">
+                            <div id="lm-artist-list" class="py-2"></div>
+                        </div>
+                        <!-- Right: Song List (always present, never moved at runtime) -->
+                        <div id="lm-song-list-container" class="flex-1 flex flex-col min-w-0">
+                            <!-- 歌手筛选 Chip -->
+                            <div id="lm-artist-filter-chip" class="hidden shrink-0 px-2 pt-2"></div>
                     <!-- 批量操作栏 -->
                     <div id="lm-batch-toolbar"
                         class="hidden bg-emerald-50/90 dark:bg-emerald-950/40 border-b border-emerald-200/50 dark:border-emerald-800/50 p-2 md:p-3 flex items-center justify-between shrink-0 rounded-t-2xl transition-all backdrop-blur-sm sticky top-0 z-20">
@@ -1355,6 +1371,8 @@
                             class="px-2 md:px-3 py-1.5 text-xs md:text-sm t-bg-main border t-border-main rounded-lg hover:t-bg-track disabled:opacity-40 disabled:cursor-not-allowed transition-colors" title="末页">
                             <i class="fas fa-angle-double-right"></i>
                         </button>
+                    </div>
+                    </div>
                     </div>
                 </div>
 

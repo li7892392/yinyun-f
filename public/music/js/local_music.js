@@ -858,7 +858,9 @@ window.LocalMusicManager = {
         // Try reading global cache location to sync the selector.
         this.setViewMode('local');
         this.syncLocationSelector();
+        this.viewMode = 'song';
         this.resetFilters(false);
+        this.selectedArtist = null;
         this.bindListEvents();
         this.bindRichCompositionEvents();
         this.fetchData();
@@ -1135,6 +1137,136 @@ window.LocalMusicManager = {
         }
     },
 
+    viewMode: 'song', // 'song' | 'artist'
+    selectedArtist: null,
+
+    setViewMode(mode) {
+        this.viewMode = mode;
+        const songBtn = document.getElementById('lm-view-song');
+        const artistBtn = document.getElementById('lm-view-artist');
+        const artistPanel = document.getElementById('lm-artist-panel');
+        const filterPanel = document.getElementById('lm-filter-panel');
+        const quickSearch = document.getElementById('lm-quick-search');
+
+        if (songBtn) songBtn.classList.toggle('active', mode === 'song');
+        if (artistBtn) artistBtn.classList.toggle('active', mode === 'artist');
+
+        if (mode === 'artist') {
+            if (artistPanel) artistPanel.classList.remove('hidden');
+            if (filterPanel) filterPanel.classList.add('hidden');
+            if (quickSearch) quickSearch.parentElement?.classList.add('hidden');
+            this.renderArtistView();
+        } else {
+            // 切回歌曲模式：清除歌手筛选，恢复完整列表
+            this.selectedArtist = null;
+            this.updateArtistFilterChip();
+            document.querySelectorAll('#lm-artist-list > div[data-artist-name]').forEach(el => {
+                el.classList.remove('active-option');
+                el.classList.add('hover:t-bg-panel', 't-text-muted');
+            });
+            if (artistPanel) artistPanel.classList.add('hidden');
+            if (filterPanel) filterPanel.classList.remove('hidden');
+            if (quickSearch) quickSearch.parentElement?.classList.remove('hidden');
+            this.applyFilters();
+        }
+    },
+
+    async renderArtistView() {
+        this.selectedArtist = null;
+        this.updateArtistFilterChip();
+        const listEl = document.getElementById('lm-artist-list');
+        if (!listEl) return;
+        listEl.innerHTML = '<div class="flex items-center justify-center py-8"><i class="fas fa-spinner fa-spin text-emerald-500"></i></div>';
+
+        try {
+            const headers = window.getUserAuthHeaders ? window.getUserAuthHeaders() : {};
+            let res = await fetch('/api/v1/player/music/local/artists', {
+                method: 'POST', headers: { ...headers, 'Content-Type': 'application/json' }, body: JSON.stringify({})
+            });
+            if (res.status === 401 && typeof window.ensureUserAuthToken === 'function') {
+                const refreshed = await window.ensureUserAuthToken({ force: true });
+                if (refreshed) {
+                    const h2 = window.getUserAuthHeaders ? window.getUserAuthHeaders() : {};
+                    res = await fetch('/api/v1/player/music/local/artists', {
+                        method: 'POST', headers: { ...h2, 'Content-Type': 'application/json' }, body: JSON.stringify({})
+                    });
+                }
+            }
+            if (!res.ok) throw new Error('HTTP ' + res.status);
+            const data = await res.json();
+            if (data.success) this.renderArtistList(listEl, data.data);
+        } catch (err) {
+            console.error('[ArtistView] Failed:', err);
+            listEl.innerHTML = '<div class="flex items-center justify-center py-8 t-text-muted text-sm">加载失败</div>';
+        }
+    },
+
+    renderArtistList(listEl, artists) {
+        if (!artists || artists.length === 0) {
+            listEl.innerHTML = '<div class="flex items-center justify-center py-8 t-text-muted text-sm">暂无歌手</div>';
+            return;
+        }
+        listEl.innerHTML = `<div class="px-3 py-2 text-[10px] font-bold t-text-muted uppercase tracking-wider">歌手 · ${artists.length}</div>`;
+        artists.forEach(artist => {
+            const isSelected = this.selectedArtist === artist.name;
+            const div = document.createElement('div');
+            div.className = 'flex items-center gap-2 px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-200 group ' +
+                (isSelected ? 'active-option' : 'hover:t-bg-panel t-text-muted');
+            div.dataset.artistName = artist.name;
+            div.onclick = () => this.selectArtist(artist.name);
+            div.innerHTML = `
+                <div class="w-8 h-8 md:w-10 md:h-10 rounded-full overflow-hidden shrink-0 bg-gray-200 dark:bg-gray-700">
+                    <img src="${this.escapeAttr(artist.picUrl || '/_player/assets/logo.svg')}" onerror="this.src='/_player/assets/logo.svg'" class="w-full h-full object-cover">
+                </div>
+                <div class="min-w-0 flex-1">
+                    <div class="text-xs md:text-sm font-bold truncate ${isSelected ? '' : 't-text-main group-hover:t-text-main'}">${this.escapeHtml(artist.name)}</div>
+                    <div class="text-[10px] t-text-muted">${artist.songCount} 首歌</div>
+                </div>
+                <i class="fas fa-chevron-right text-[10px] t-text-muted opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0"></i>
+            `;
+            listEl.appendChild(div);
+        });
+        this.updateArtistFilterChip();
+    },
+
+    selectArtist(name) {
+        this.selectedArtist = name;
+        document.querySelectorAll('#lm-artist-list > div[data-artist-name]').forEach(el => {
+            const isSel = el.dataset.artistName === name;
+            el.classList.toggle('active-option', isSel);
+            el.classList.toggle('hover:t-bg-panel', !isSel);
+            el.classList.toggle('t-text-muted', !isSel);
+        });
+        this.updateArtistFilterChip();
+        this.applyFilters();
+    },
+
+    // 更新列表上方的歌手筛选 chip（显示“歌手：xxx ×”）
+    updateArtistFilterChip() {
+        const chip = document.getElementById('lm-artist-filter-chip');
+        if (!chip) return;
+        if (!this.selectedArtist) {
+            chip.classList.add('hidden');
+            chip.innerHTML = '';
+            return;
+        }
+        chip.classList.remove('hidden');
+        chip.innerHTML = '<button onclick="window.LocalMusicManager.clearArtistFilter()" class="lm-filter-tag active !text-[9px] md:!text-[10px] !px-2 !py-1 flex items-center gap-1.5">' +
+            '<i class="fas fa-user text-[8px]"></i>歌手：' + this.escapeHtml(this.selectedArtist) +
+            '<i class="fas fa-times text-[8px]"></i></button>';
+    },
+
+    // 清除歌手筛选：恢复完整列表并取消选中行
+    clearArtistFilter() {
+        this.selectedArtist = null;
+        document.querySelectorAll('#lm-artist-list > div[data-artist-name]').forEach(el => {
+            el.classList.remove('active-option');
+            el.classList.add('hover:t-bg-panel', 't-text-muted');
+        });
+        this.updateArtistFilterChip();
+        this.applyFilters();
+    },
+
     showAuthExpiredState() {
         this.authExpired = true;
         this.originalData = [];
@@ -1232,6 +1364,12 @@ window.LocalMusicManager = {
                 if ((item.subPath || '') !== target) return false;
             }
 
+            // Artist check（歌手筛选：命中多个歌手字段中任一个即保留）
+            if (this.selectedArtist) {
+                const singers = (item.singer || '').split(/[、，,&；;|\/+]/).map(s => s.trim()).filter(Boolean);
+                if (!singers.some(s => s === this.selectedArtist)) return false;
+            }
+
             return true;
         });
 
@@ -1291,7 +1429,7 @@ window.LocalMusicManager = {
 
         // 4. Update UI Indicator
         const dot = document.getElementById('lm-filter-active-dot');
-        const hasActiveFilters = this.searchKeyword || this.quickSearchKeyword || this.filterQuality.size > 0 || this.filterFolder !== 'all' || this.filterStatus.size > 0 || this.filterSource.size > 0;
+        const hasActiveFilters = this.searchKeyword || this.quickSearchKeyword || this.filterQuality.size > 0 || this.filterFolder !== 'all' || this.filterStatus.size > 0 || this.filterSource.size > 0 || this.selectedArtist;
         if (dot) {
             if (hasActiveFilters) dot.classList.remove('hidden');
             else dot.classList.add('hidden');
