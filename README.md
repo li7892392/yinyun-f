@@ -22,6 +22,23 @@
   </p>
 </div>
 
+> [!NOTE]
+> 这是 [bobcc4/yinyun-lxserver](https://github.com/bobcc4/yinyun-lxserver) 的个人修改版（fork），在原版基础上新增了「本地音乐按歌手浏览」功能，其余与原版一致。上游仓库：<https://github.com/bobcc4/yinyun-lxserver>
+
+## ✨ 本版新增：本地音乐按歌手浏览
+
+本地音乐页新增「歌曲 / 歌手」视图切换，可按歌手浏览本地曲库：
+
+- 歌手模式左侧为歌手列表，展示歌手头像与本地歌曲数；右侧复用现有歌曲列表。
+- 点击歌手后，右侧歌曲列表仅显示该歌手的歌曲，再次点击可取消筛选。
+- 歌手头像自动获取，来源优先级复用既有的 `SINGER_SOURCE_PRIORITY`（`singer.sourcePriority`，默认 `tx,wy`，即 QQ 音乐优先、其次网易云）。
+- 新增后端接口 `POST /api/v1/player/music/local/artists`，按歌手分组并附带歌手头像。
+
+| 视图 | 展示方式 | 点击行为 |
+| --- | --- | --- |
+| 歌曲 | 现有歌曲列表，筛选、搜索、批量操作不变 | — |
+| 歌手 | 左侧歌手列表（头像、歌曲数），右侧歌曲列表 | 选中歌手，右侧仅显示该歌手的歌曲 |
+
 [帮助文档 Documentation](https://bobcc4.github.io/yinyun-lxserver/) | [同步服务器 SyncServer](md/lxserver.md) | [更新日志 Changelog](changelog.md) | [English](README_EN.md)
 
 ---
@@ -33,6 +50,7 @@
 
 ## 项目地址与推荐使用方式
 
+- **本 fork（当前仓库）：** [li7892392/yinyun-f](https://github.com/li7892392/yinyun-f)（`my-artist-feature` 分支），在原版基础上新增「本地音乐按歌手浏览」功能。
 - **服务端：** [bobcc4/yinyun-lxserver](https://github.com/bobcc4/yinyun-lxserver)
   支持使用 Docker 搭建，也提供 Windows、macOS 等平台的安装包。
 - **Windows 客户端：** [bobcc4/yinyun-windows](https://github.com/bobcc4/yinyun-windows)
@@ -143,6 +161,9 @@ Web 播放器保留两种歌单分享方式：分享给同一服务端的其他�
 - **Docker Hub**: `bobcc4/yinyun-lxserver:latest`
 - **GitHub Packages**: `ghcr.io/bobcc4/yinyun-lxserver:latest`
 
+> [!NOTE]
+> **本 fork 的镜像：** `ghcr.io/li7892392/yinyun-f:latest` — 含「本地音乐按歌手浏览」功能，每次 push 到 `my-artist-feature` 分支由 GitHub Actions 自动构建（也可锁定某次构建的 `sha-xxxxxxx` 标签）。使用它时把下方示例中的 `image:` 一行换成 `ghcr.io/li7892392/yinyun-f:latest` 即可，其余配置不变。维护与上游同步见 [docs/UPSTREAM_MERGE.md](docs/UPSTREAM_MERGE.md)。
+
 > [!IMPORTANT]
 > Docker 正式镜像已改用 `latest` 标签，原 `v1` 标签停止更新。现有用户必须把 Compose 或 NAS 容器中的镜像改为 `bobcc4/yinyun-lxserver:latest`。每次正式发布还会永久保留完整版本标签，例如 `bobcc4/yinyun-lxserver:v1.5.4`，用于锁定版本或回滚。数据目录结构没有变化，请保留原有 `/server/data`、`/server/logs`、`/server/cache` 和 `/server/music` 挂载。
 
@@ -157,17 +178,19 @@ docker run -d \
   -v $(pwd)/music:/server/music \
   --name yinyun \
   --restart unless-stopped \
-  bobcc4/yinyun-lxserver:latest
+  bobcc4/yinyun-lxserver:latest  # 本 fork 改为 ghcr.io/li7892392/yinyun-f:latest
 ```
 
 **Docker Compose 示例：**
 
+
+<!-- 本 fork 使用 ghcr.io/li7892392/yinyun-f:latest：只改下面 yaml 中的 image: 一行，其余不变。 -->
 新建 `docker-compose.yml` 文件：
 
 ```yaml
 services:
   yinyun:
-    image: bobcc4/yinyun-lxserver:latest
+    image: bobcc4/yinyun-lxserver:latest  # 本 fork 改为 ghcr.io/li7892392/yinyun-f:latest
     container_name: yinyun
     restart: unless-stopped
     ports:
@@ -214,6 +237,7 @@ docker compose up -d
 ```bash
 # 1. 克隆项目
 git clone https://github.com/bobcc4/yinyun-lxserver.git && cd yinyun-lxserver
+# 本 fork（含新增功能）：git clone -b my-artist-feature https://github.com/li7892392/yinyun-f.git && cd yinyun-f
 
 # 2. 安装依赖并编译
 npm ci && npm run build
@@ -233,6 +257,10 @@ npm start
 - **Web 播放器**: `http://your-ip:9527/`
 - **管理后台**: `http://your-ip:9527/admin`（默认管理密码：`123456`）
 - **Subsonic**: `http://your-ip:9527/rest`
+
+## 🔄 与上游同步
+
+本地开发分支为 `my-artist-feature`。上游作者发布更新时：切到 `main` 执行 `git pull`，再切回 `my-artist-feature` 执行 `git rebase main`，随后 GitHub Actions 会自动重新构建镜像。冲突处理与完整流程见 [docs/UPSTREAM_MERGE.md](docs/UPSTREAM_MERGE.md)。
 
 ---
 

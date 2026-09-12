@@ -29,6 +29,27 @@ Yinyun keeps same-server user playlist sharing and also supports cross-server ex
 > [!IMPORTANT]
 > v1.5.0 uses fixed entry points: `/` for the Web player and `/admin` for the management console. The former `/music` Web route has been removed. `/api/v1`, Subsonic `/rest`, and the `/server/music` persistent audio directory are unchanged.
 
+> [!NOTE]
+> This is a personal fork of [bobcc4/yinyun-lxserver](https://github.com/bobcc4/yinyun-lxserver) with one extra feature on top of the original: **browsing local music by artist**. Everything else is identical to upstream. Upstream repository: <https://github.com/bobcc4/yinyun-lxserver>
+
+## ✨ New in This Fork: Browse Local Music by Artist
+
+The local music page now has a "Songs / Artists" view switch for browsing the local library by artist:
+
+- In artist mode, the left panel lists artists with avatars and local song counts; the right side reuses the existing song list.
+- Clicking an artist filters the song list to that artist's songs; clicking again clears the filter.
+- Artist avatars are fetched automatically, reusing the existing `SINGER_SOURCE_PRIORITY` (`singer.sourcePriority`, default `tx,wy`, i.e. QQ Music first, then NetEase).
+- New backend endpoint `POST /api/v1/player/music/local/artists` groups local tracks by artist with avatars.
+
+| View | Display | Click behavior |
+| --- | --- | --- |
+| Songs | Existing song list; filters, search, and batch actions unchanged | — |
+| Artists | Left artist list (avatar, song count), right song list | Select an artist to show only their songs |
+
+### Docker Image for This Fork
+
+- **GitHub Packages**: `ghcr.io/li7892392/yinyun-f:latest` — includes the artist-browsing feature, built automatically by GitHub Actions on every push to the `my-artist-feature` branch. Swap the `image:` line in the examples below for this image; all other settings are unchanged.
+
 ## ✨ Web Player Key Features
 
 ### 1. Multi-platform Search and Playback
