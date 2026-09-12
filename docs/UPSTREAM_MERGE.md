@@ -89,3 +89,71 @@ git push myfork my-artist-feature     # 把功能分支推到你自己的仓库
 docker save yinyun-f:latest -o yinyun-f.tar    # 导出
 docker load -i yinyun-f.tar                    # 在 NAS 上导入
 ```
+
+## 5. 自动构建（GitHub Actions）
+
+仓库里有一个 `.github/workflows/docker-custom.yml`（独立文件，与上游的 `docker.yml` 互不干扰，同步上游不会冲突）。它做的事：**每次 `git push` 到 `main` 或 `my-artist-feature` 分支，GitHub 自动构建 Docker 镜像并发布到 ghcr.io**。也可以在 GitHub 网页上手动触发（Actions → Build Docker Image (fork) → Run workflow）。
+
+构建成功后，镜像地址是：
+
+```
+ghcr.io/li7892392/yinyun-f:latest
+```
+
+### 5.1 一次性设置：把镜像包改为 Public
+
+第一次 push 触发构建后，GitHub 会在你的账号下创建一个包（package），**默认是私有的**——私有包 NAS 拉取需要登录，麻烦。建议改成 Public（代码仓库本来就是公开的，镜像公开没有额外风险）：
+
+1. 打开 GitHub，进入**你的 fork 仓库** `li7892392/yinyun-f` 页面。
+2. 右侧栏找到 **Packages**，点开包 **yinyun-f**（注意是 ghcr.io 的包，不是 Docker Hub）。
+3. 右下角 **Package settings**。
+4. 拉到页面底部 **Danger Zone** → **Change visibility** → **Public**，输入包名确认。
+
+改完后任何机器都能匿名 `docker pull` 这个镜像。
+
+> 备选：如果坚持保持 Private，也可以，但 NAS 每次拉取前要先登录一次：
+> `docker login ghcr.io -u li7892392`，密码用 GitHub 的 Personal Access Token（需要 `read:packages` 权限）。对新手来说没必要，推荐 Public。
+
+### 5.2 新的更新流程（替代本机构建）
+
+以后更新 NAS 上的服务只需三步：
+
+```bash
+# 1. 本机：提交并推送（推送到你的 fork）
+git push myfork my-artist-feature
+
+# 2. 等几分钟：GitHub Actions 自动构建（进度看仓库的 Actions 标签页，出现绿勾即完成）
+
+# 3. NAS 上：拉新镜像并重启
+docker pull ghcr.io/li7892392/yinyun-f:latest
+docker compose up -d
+```
+
+第 3 步也可以在飞牛 fnOS 的 Docker 界面里做：找到容器使用的镜像，点**检查更新 / 拉取最新镜像**，然后重建容器即可，效果一样。
+
+注意：fnOS 上 `docker-compose.yml` 里的 `image:` 要改成 `ghcr.io/li7892392/yinyun-f:latest`，volumes 等其他配置保持不变，数据全部保留。
+
+### 5.3 回滚到某次具体的构建
+
+每次构建还会打一个 `sha-开头` 的不可变标签，对应当次推送的 commit。万一新版本有问题：
+
+```bash
+# 去 GitHub 仓库 → Actions → 找到出问题那次构建，记下它的短 commit 号（如 sha-a1b2c3d）
+docker pull ghcr.io/li7892392/yinyun-f:sha-a1b2c3d
+# 把 docker-compose.yml 里 image: 的标签改成 sha-a1b2c3d，然后
+docker compose up -d
+```
+
+### 5.4 旧的"NAS 上构建"流程（方案 B，备用）
+
+自动构建不可用时（比如 GitHub Actions 排队、或想在 NAS 本地构建），旧流程仍然有效：
+
+```bash
+# NAS 上
+git clone -b my-artist-feature https://github.com/li7892392/yinyun-f.git
+cd yinyun-f
+docker build -t yinyun-f:latest .
+```
+
+本机 `docker save` / `docker load` 传 tar 包的方式也依然可用（见第 4 节）。
+

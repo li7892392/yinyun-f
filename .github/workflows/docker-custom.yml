@@ -1,0 +1,77 @@
+# 用户 fork 的自动构建：push 后自动把镜像发到 ghcr.io，NAS 直接拉取，无需本机 docker build。
+# 独立文件，不复用也不修改上游 .github/workflows/docker.yml（避免上游同步/变基时冲突）。
+# 零配置：只用内置 GITHUB_TOKEN 登录 ghcr.io，无需任何 secrets。
+name: Build Docker Image (fork)
+
+on:
+  push:
+    branches:
+      - my-artist-feature
+      - main
+  workflow_dispatch:
+
+env:
+  REGISTRY: ghcr.io
+
+jobs:
+  build_and_push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    concurrency:
+      group: docker-${{ github.ref }}
+      cancel-in-progress: true
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v7
+
+      # 把版本号/构建哈希写进 public/js/config.js（浏览器据此刷新前端缓存）。
+      # 脚本只用 node 内置模块，runner 自带 node，无需 setup-node。
+      - name: Generate build hash
+        run: node scripts/update-build-hash.js
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Log in to ghcr.io
+        uses: docker/login-action@v4
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # 标签策略（刻意精简，共 3 类）：
+      # - <分支名>   各分支的稳定标签，便于对比测试（如 my-artist-feature、main）。
+      # - latest     仅在 my-artist-feature 推送时更新：main 是纯上游代码（不含
+      #              歌手视图功能），若 main 也能推 latest，两条分支构建完成顺序
+      #              不定，latest 可能悄悄退回无功能版本，NAS 拉到会"丢功能"。
+      # - sha-<短sha> 不可变标签，用于精确定位/回滚某一次构建。
+      - name: Extract metadata (tags, labels)
+        id: meta
+        uses: docker/metadata-action@v6
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}
+          tags: |
+            type=ref,event=branch
+            type=raw,value=latest,enable=${{ github.ref_name == 'my-artist-feature' }}
+            type=sha,prefix=sha-,format=short
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+
+      # 平台只构建 linux/amd64：fnOS NAS 是 x86，单平台构建快、gha 缓存小；
+      # arm64 需 QEMU 模拟，构建时间约翻倍，没有设备跑它纯属浪费。
+      # 将来若换 ARM NAS：加回 setup-qemu-action 步骤，并把 platforms 改为
+      # linux/amd64,linux/arm64 即可。
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: ./Dockerfile
+          push: true
+          platforms: linux/amd64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
