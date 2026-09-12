@@ -861,6 +861,7 @@ window.LocalMusicManager = {
         this.viewMode = 'song';
         this.resetFilters(false);
         this.selectedArtist = null;
+        this.selectedGenre = null;
         this.bindListEvents();
         this.bindRichCompositionEvents();
         this.fetchData();
@@ -1137,34 +1138,66 @@ window.LocalMusicManager = {
         }
     },
 
-    viewMode: 'song', // 'song' | 'artist'
+    viewMode: 'song', // 'song' | 'artist' | 'genre'
     selectedArtist: null,
+    selectedGenre: null,
 
     setViewMode(mode) {
         this.viewMode = mode;
         const songBtn = document.getElementById('lm-view-song');
         const artistBtn = document.getElementById('lm-view-artist');
+        const genreBtn = document.getElementById('lm-view-genre');
         const artistPanel = document.getElementById('lm-artist-panel');
+        const genrePanel = document.getElementById('lm-genre-panel');
         const filterPanel = document.getElementById('lm-filter-panel');
         const quickSearch = document.getElementById('lm-quick-search');
 
         if (songBtn) songBtn.classList.toggle('active', mode === 'song');
         if (artistBtn) artistBtn.classList.toggle('active', mode === 'artist');
+        if (genreBtn) genreBtn.classList.toggle('active', mode === 'genre');
 
         if (mode === 'artist') {
             if (artistPanel) artistPanel.classList.remove('hidden');
+            if (genrePanel) genrePanel.classList.add('hidden');
             if (filterPanel) filterPanel.classList.add('hidden');
             if (quickSearch) quickSearch.parentElement?.classList.add('hidden');
+            // 清除风格筛选
+            this.selectedGenre = null;
+            this.updateGenreFilterChip();
+            document.querySelectorAll('#lm-genre-list > div[data-genre-name]').forEach(el => {
+                el.classList.remove('active-option');
+                el.classList.add('hover:t-bg-panel', 't-text-muted');
+            });
             this.renderArtistView();
-        } else {
-            // 切回歌曲模式：清除歌手筛选，恢复完整列表
+        } else if (mode === 'genre') {
+            if (genrePanel) genrePanel.classList.remove('hidden');
+            if (artistPanel) artistPanel.classList.add('hidden');
+            if (filterPanel) filterPanel.classList.add('hidden');
+            if (quickSearch) quickSearch.parentElement?.classList.add('hidden');
+            // 清除歌手筛选
             this.selectedArtist = null;
             this.updateArtistFilterChip();
             document.querySelectorAll('#lm-artist-list > div[data-artist-name]').forEach(el => {
                 el.classList.remove('active-option');
                 el.classList.add('hover:t-bg-panel', 't-text-muted');
             });
+            this.renderGenreView();
+        } else {
+            // 切回歌曲模式：清除歌手和风格筛选，恢复完整列表
+            this.selectedArtist = null;
+            this.updateArtistFilterChip();
+            document.querySelectorAll('#lm-artist-list > div[data-artist-name]').forEach(el => {
+                el.classList.remove('active-option');
+                el.classList.add('hover:t-bg-panel', 't-text-muted');
+            });
+            this.selectedGenre = null;
+            this.updateGenreFilterChip();
+            document.querySelectorAll('#lm-genre-list > div[data-genre-name]').forEach(el => {
+                el.classList.remove('active-option');
+                el.classList.add('hover:t-bg-panel', 't-text-muted');
+            });
             if (artistPanel) artistPanel.classList.add('hidden');
+            if (genrePanel) genrePanel.classList.add('hidden');
             if (filterPanel) filterPanel.classList.remove('hidden');
             if (quickSearch) quickSearch.parentElement?.classList.remove('hidden');
             this.applyFilters();
@@ -1264,6 +1297,83 @@ window.LocalMusicManager = {
             el.classList.add('hover:t-bg-panel', 't-text-muted');
         });
         this.updateArtistFilterChip();
+        this.applyFilters();
+    },
+
+    // --- Genre View (风格视图) ---
+
+    renderGenreView() {
+        this.selectedGenre = null;
+        this.updateGenreFilterChip();
+        const listEl = document.getElementById('lm-genre-list');
+        if (!listEl) return;
+
+        // 聚合风格数据（客户端从 originalData 统计）
+        const genreMap = {};
+        (this.originalData || []).forEach(item => {
+            const g = (item.genre || '').trim() || '未知';
+            if (!genreMap[g]) genreMap[g] = { name: g, songCount: 0 };
+            genreMap[g].songCount++;
+        });
+        const genres = Object.values(genreMap).sort((a, b) => b.songCount - a.songCount);
+        this.renderGenreList(listEl, genres);
+    },
+
+    renderGenreList(listEl, genres) {
+        if (!genres || genres.length === 0) {
+            listEl.innerHTML = '<div class="flex items-center justify-center py-8 t-text-muted text-sm">暂无风格</div>';
+            return;
+        }
+        listEl.innerHTML = `<div class="px-3 py-2 text-[10px] font-bold t-text-muted uppercase tracking-wider">风格 · ${genres.length}</div>`;
+        genres.forEach(genre => {
+            const isSelected = this.selectedGenre === genre.name;
+            const div = document.createElement('div');
+            div.className = 'flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-all duration-200 group ' +
+                (isSelected ? 'active-option' : 'hover:t-bg-panel t-text-muted');
+            div.dataset.genreName = genre.name;
+            div.onclick = () => this.selectGenre(genre.name);
+            div.innerHTML = `
+                <span class="text-xs md:text-sm font-bold truncate ${isSelected ? '' : 't-text-main group-hover:t-text-main'}">${this.escapeHtml(genre.name)}</span>
+                <span class="text-[10px] t-text-muted shrink-0 ml-2">${genre.songCount} 首</span>
+            `;
+            listEl.appendChild(div);
+        });
+        this.updateGenreFilterChip();
+    },
+
+    selectGenre(name) {
+        this.selectedGenre = name;
+        document.querySelectorAll('#lm-genre-list > div[data-genre-name]').forEach(el => {
+            const isSel = el.dataset.genreName === name;
+            el.classList.toggle('active-option', isSel);
+            el.classList.toggle('hover:t-bg-panel', !isSel);
+            el.classList.toggle('t-text-muted', !isSel);
+        });
+        this.updateGenreFilterChip();
+        this.applyFilters();
+    },
+
+    updateGenreFilterChip() {
+        const chip = document.getElementById('lm-genre-filter-chip');
+        if (!chip) return;
+        if (!this.selectedGenre) {
+            chip.classList.add('hidden');
+            chip.innerHTML = '';
+            return;
+        }
+        chip.classList.remove('hidden');
+        chip.innerHTML = '<button onclick="window.LocalMusicManager.clearGenreFilter()" class="lm-filter-tag active !text-[9px] md:!text-[10px] !px-2 !py-1 flex items-center gap-1.5">' +
+            '<i class="fas fa-music text-[8px]"></i>风格：' + this.escapeHtml(this.selectedGenre) +
+            '<i class="fas fa-times text-[8px]"></i></button>';
+    },
+
+    clearGenreFilter() {
+        this.selectedGenre = null;
+        document.querySelectorAll('#lm-genre-list > div[data-genre-name]').forEach(el => {
+            el.classList.remove('active-option');
+            el.classList.add('hover:t-bg-panel', 't-text-muted');
+        });
+        this.updateGenreFilterChip();
         this.applyFilters();
     },
 
@@ -1370,6 +1480,12 @@ window.LocalMusicManager = {
                 if (!singers.some(s => s === this.selectedArtist)) return false;
             }
 
+            // Genre check（风格筛选）
+            if (this.selectedGenre) {
+                const g = (item.genre || '').trim() || '未知';
+                if (g !== this.selectedGenre) return false;
+            }
+
             return true;
         });
 
@@ -1429,7 +1545,7 @@ window.LocalMusicManager = {
 
         // 4. Update UI Indicator
         const dot = document.getElementById('lm-filter-active-dot');
-        const hasActiveFilters = this.searchKeyword || this.quickSearchKeyword || this.filterQuality.size > 0 || this.filterFolder !== 'all' || this.filterStatus.size > 0 || this.filterSource.size > 0 || this.selectedArtist;
+        const hasActiveFilters = this.searchKeyword || this.quickSearchKeyword || this.filterQuality.size > 0 || this.filterFolder !== 'all' || this.filterStatus.size > 0 || this.filterSource.size > 0 || this.selectedArtist || this.selectedGenre;
         if (dot) {
             if (hasActiveFilters) dot.classList.remove('hidden');
             else dot.classList.add('hidden');

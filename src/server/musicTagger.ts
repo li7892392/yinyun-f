@@ -24,6 +24,9 @@ export class MusicTagger {
     get album() { return this.file?.album ?? null }
     set album(value: string | null) { this.requireFile().album = value }
 
+    get genre() { return this.file?.genre ?? null }
+    set genre(value: string | null) { this.requireFile().genre = value }
+
     get year() { return this.file?.year ?? null }
     set year(value: number | null) { this.requireFile().year = value }
 

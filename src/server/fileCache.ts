@@ -158,6 +158,7 @@ export interface CacheItem {
     album: string
     albumId?: string
     releaseDate?: string
+    genre?: string
     img?: string
     interval?: string
     source: string
@@ -949,7 +950,7 @@ export const syncCacheIndex = async (
                     }
 
                     // If interval or quality/bitrate is missing/unknown, or hasEmbedLyric not yet detected, try to extract it
-                    if (!existing.interval || existing.quality === 'unknown' || !existing.bitrate || existing.releaseDate === undefined || existing.hasEmbedLyric === undefined || existing.metadataWritable === undefined || !String(existing.albumArtist || '').trim() || qualityCorrectionNeeded) {
+                    if (!existing.interval || existing.quality === 'unknown' || !existing.bitrate || existing.releaseDate === undefined || existing.genre === undefined || existing.hasEmbedLyric === undefined || existing.metadataWritable === undefined || !String(existing.albumArtist || '').trim() || qualityCorrectionNeeded) {
                         let tagger: any
                         try {
                             tagger = new MusicTagger()
@@ -961,6 +962,7 @@ export const syncCacheIndex = async (
                             existing.bitDepth = tagger.bitDepth
                             if (existing.releaseDate === undefined) existing.releaseDate = normalizeReleaseDate(tagger.year)
                             if (existing.albumArtist === undefined) existing.albumArtist = String(tagger.albumArtist || existing.singer || singer || 'Unknown').trim()
+                            if (existing.genre === undefined) existing.genre = String(tagger.genre || '').trim()
                             if (!existing.quality || existing.quality === 'unknown' || qualityCorrectionNeeded) {
                                 const detectedQuality = detectQualityFromBitrate(tagger.bitRate, ext, tagger)
                                 existing.quality = resolveInspectedQuality(existing.quality, detectedQuality, currentAudioContainer, tagger)
@@ -995,6 +997,7 @@ export const syncCacheIndex = async (
                     let sampleRate: number | undefined
                     let bitDepth: number | undefined
                     let releaseDate = ''
+                    let genre = ''
                     let hasEmbedLyric = false
                     let metadataWritable = false
                     let metadataError: string | undefined
@@ -1016,6 +1019,7 @@ export const syncCacheIndex = async (
                         sampleRate = tagger.sampleRate
                         bitDepth = tagger.bitDepth
                         releaseDate = normalizeReleaseDate(tagger.year)
+                        genre = String(tagger.genre || '').trim()
                         finalQuality = detectQualityFromBitrate(tagger.bitRate, ext, tagger)
 
                         // [新增] 检测是否已嵌入歌词 USLT 标签
@@ -1046,6 +1050,7 @@ export const syncCacheIndex = async (
                         album: album || '',
                         albumId: '',
                         releaseDate,
+                        genre,
                         img: '',
                         interval: interval,
                         source: source || 'unknown',

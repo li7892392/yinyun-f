@@ -1006,6 +1006,8 @@
                                     class="lm-filter-tag active !text-[9px] md:!text-[10px] !px-2 !py-0.5">歌曲</button>
                                 <button id="lm-view-artist" onclick="window.LocalMusicManager.setViewMode('artist')"
                                     class="lm-filter-tag !text-[9px] md:!text-[10px] !px-2 !py-0.5">歌手</button>
+                                <button id="lm-view-genre" onclick="window.LocalMusicManager.setViewMode('genre')"
+                                    class="lm-filter-tag !text-[9px] md:!text-[10px] !px-2 !py-0.5">风格</button>
                             </div>
                         </div>
 
@@ -1254,10 +1256,17 @@
                             class="hidden w-48 md:w-56 lg:w-64 shrink-0 overflow-y-auto custom-scrollbar border-r t-border-main bg-gray-50/50 dark:bg-gray-900/30">
                             <div id="lm-artist-list" class="py-2"></div>
                         </div>
+                        <!-- Genre Panel (hidden in song mode) -->
+                        <div id="lm-genre-panel"
+                            class="hidden w-48 md:w-56 lg:w-64 shrink-0 overflow-y-auto custom-scrollbar border-r t-border-main bg-gray-50/50 dark:bg-gray-900/30">
+                            <div id="lm-genre-list" class="py-2"></div>
+                        </div>
                         <!-- Right: Song List (always present, never moved at runtime) -->
                         <div id="lm-song-list-container" class="flex-1 flex flex-col min-w-0">
                             <!-- 歌手筛选 Chip -->
                             <div id="lm-artist-filter-chip" class="hidden shrink-0 px-2 pt-2"></div>
+                            <!-- 风格筛选 Chip -->
+                            <div id="lm-genre-filter-chip" class="hidden shrink-0 px-2 pt-2"></div>
                     <!-- 批量操作栏 -->
                     <div id="lm-batch-toolbar"
                         class="hidden bg-emerald-50/90 dark:bg-emerald-950/40 border-b border-emerald-200/50 dark:border-emerald-800/50 p-2 md:p-3 flex items-center justify-between shrink-0 rounded-t-2xl transition-all backdrop-blur-sm sticky top-0 z-20">
