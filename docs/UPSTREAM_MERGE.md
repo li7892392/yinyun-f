@@ -49,7 +49,7 @@ git rebase main              # 把你的提交重放到最新代码之上
 **rebase 成功后必须重新构建镜像**（代码变了，Docker 镜像还是旧的）：
 
 ```bash
-docker build -t yinyun-local:latest .
+docker build -t yinyun-f:latest .
 ```
 
 ## 3. 备份：推送到你自己的 GitHub
@@ -77,14 +77,15 @@ git push myfork my-artist-feature     # 把功能分支推到你自己的仓库
 
 ## 4. Docker 部署要点
 
-- 镜像：`yinyun-local:latest`，用仓库自带的 `Dockerfile` 构建。
-- `docker-compose.yml` 中把 `image: bobcc4/yinyun-lxserver:latest` 改为 `image: yinyun-local:latest`。
+- 镜像：`yinyun-f:latest`，用仓库自带的 `Dockerfile` 构建。
+- `docker-compose.yml` 中把 `image: bobcc4/yinyun-lxserver:latest` 改为 `image: yinyun-f:latest`。
 - volumes（`data` / `logs` / `cache` / `music`）不用动，现有数据全部保留。
-- 每次 rebase + 代码变化后，重新执行 `docker build -t yinyun-local:latest .` 再重启容器。
+- 每次 rebase + 代码变化后，重新执行 `docker build -t yinyun-f:latest .` 再重启容器。
+- 也可以直接在 NAS 上 `git clone -b my-artist-feature https://github.com/li7892392/yinyun-f.git` 后在仓库目录执行 `docker build -t yinyun-f:latest .`，无需传 tar。
 
 **迁移镜像到 NAS**（可选）：
 
 ```bash
-docker save yinyun-local:latest -o yinyun-local.tar    # 导出
-docker load -i yinyun-local.tar                        # 在 NAS 上导入
+docker save yinyun-f:latest -o yinyun-f.tar    # 导出
+docker load -i yinyun-f.tar                    # 在 NAS 上导入
 ```
